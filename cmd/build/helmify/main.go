@@ -88,6 +88,7 @@ func (ks *kindSet) Write() error {
 			if err != nil {
 				return err
 			}
+
 			fileName := fmt.Sprintf("%s-%s.yaml", strings.ToLower(name), strings.ToLower(kind))
 			destFile := path.Join(*outputDir, subPath, fileName)
 			fmt.Printf("Writing %s\n", destFile)
@@ -102,6 +103,17 @@ func (ks *kindSet) Write() error {
 
 			if kind == "Deployment" {
 				obj = strings.Replace(obj, "      labels:", "      labels:\n{{- include \"gatekeeper.podLabels\" . }}", 1)
+
+				if name == "gatekeeper-controller-manager" {
+					obj = strings.Replace(obj, "--operation=webhook", "--operation=webhook\n\t\t{{- if .Values.experimental-enable-mutation }}\n\t\t\t\t- --enable-mutation=true \n\t\t{{- end }}", 1)
+				}
+			}
+			if name == "Assign" {
+				obj = "{{- if not .Values.experimental-enable-mutation }}\n" + obj + "{{- end }}\n"
+			}
+
+			if name == "AssignMetadata" {
+				obj = "{{- if not .Values.experimental-enable-mutation }}\n" + obj + "{{- end }}\n"
 			}
 
 			if err := ioutil.WriteFile(destFile, []byte(obj), 0644); err != nil {

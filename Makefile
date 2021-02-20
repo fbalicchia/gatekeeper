@@ -167,9 +167,15 @@ install: manifests
 	kustomize build config/crd | kubectl apply -f -
 
 deploy-mutation: patch-image
-	@grep -q -v 'enable-mutation' ./config/overlays/dev/manager_image_patch.yaml && sed -i '/- --operation=webhook/a \ \ \ \ \ \ \ \ - --enable-mutation=true' ./config/overlays/dev/manager_image_patch.yaml
+	@grep -q -v 'enable-mutation' ./config/overlays/dev/manager_image_patch.yaml && gsed -i '/- --operation=webhook/a \ \ \ \ \ \ \ \ - --enable-mutation=true' ./config/overlays/dev/manager_image_patch.yaml
 	kustomize build config/overlays/mutation_webhook | kubectl apply -f -
 	kustomize build --load_restrictor LoadRestrictionsNone config/overlays/mutation | kubectl apply -f -
+
+check-mutation: patch-image
+	@grep -q -v 'enable-mutation' ./config/overlays/dev/manager_image_patch.yaml && gsed -i '/- --operation=webhook/a \ \ \ \ \ \ \ \ - --enable-mutation=true' ./config/overlays/dev/manager_image_patch.yaml
+	kustomize build config/overlays/mutation_webhook 
+	#kustomize build --load_restrictor LoadRestrictionsNone config/overlays/mutation 
+
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: patch-image manifests
@@ -183,6 +189,13 @@ manifests: __controller-gen
 	mkdir -p manifest_staging/charts/gatekeeper
 	docker run --rm -v $(shell pwd):/gatekeeper --entrypoint /usr/local/bin/kustomize line/kubectl-kustomize:${KUBECTL_KUSTOMIZE_VERSION} build /gatekeeper/config/default -o /gatekeeper/manifest_staging/deploy/gatekeeper.yaml
 	docker run --rm -v $(shell pwd):/gatekeeper --entrypoint /usr/local/bin/kustomize line/kubectl-kustomize:${KUBECTL_KUSTOMIZE_VERSION} build /gatekeeper/cmd/build/helmify | go run cmd/build/helmify/*.go
+
+helmfy:
+	docker run --rm -v $(shell pwd):/gatekeeper --entrypoint /usr/local/bin/kustomize line/kubectl-kustomize:${KUBECTL_KUSTOMIZE_VERSION} build /gatekeeper/cmd/build/helmify | go run cmd/build/helmify/*.go
+
+clean-helmfy:
+	rm -rf  ./manifest_staging/charts/gatekeeper/templates
+	rm -rf  ./manifest_staging/charts/gatekeeper/crds
 
 lint:
 	golangci-lint -v run ./... --timeout 5m
